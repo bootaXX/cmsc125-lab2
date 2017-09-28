@@ -1,20 +1,17 @@
+import os
+
 
 class Process(object):
     """docstring for Process"""
-    def __init__(self, arrival, burst, priority):
+    def __init__(self, name, arrival, burst, priority):
         super(Process, self).__init__()
+        self.name = name
         self.arrival = arrival
         self.burst = burst
         self.priority = priority
 
-    def getArrival(self):
-        print(self.arrival)
-
-    def getBurst(self):
-        print(self.burst)
-
-    def getPriority(self):
-        print(self.priority)
+    def __str__(self):
+        return ','.join([self.name, self.arrival, self.burst, self.priority])
 
 
 class Schedule(object):
@@ -62,6 +59,23 @@ class FileRead(object):
     def __init__(self, file):
         super(FileRead, self).__init__()
         self.file = file
+        self.lines = []
+        self.processes = []
+
+    def extractData(self):
+        string = open("processes/process1.txt", "r")
+        for line in string:
+            self.lines.append(line)
+
+    def datatoProcess(self):
+        flag = True
+        for line in self.lines:
+            if flag:
+                flag = False
+            else:
+                split = line.split()
+                proc = Process(split[0], split[1], split[2], split[3])
+                self.processes.append(proc)
 
 
 def main():
@@ -72,12 +86,16 @@ def main():
     srpt = SRPT("srpt")
     priority = Priority("priority")
     roundrobin = RoundRobin("roundrobin")
+    file = FileRead("/process1.txt")
+    file.extractData()
+    file.datatoProcess()
 
     print(schedule)
     print(fcfs)
     print(sjf)
     print(priority)
     print(roundrobin)
+    print(file.processes[1])
 
 if __name__ == '__main__':
     main()
