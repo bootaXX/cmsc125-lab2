@@ -1,4 +1,6 @@
 import os
+from operator import attrgetter
+import time
 
 
 class Process(object):
@@ -10,11 +12,15 @@ class Process(object):
         self.burst = burst
         self.priority = priority
         self.waiting = 0
+        self.ctr = 0
 
     def __str__(self):
         str1 = str(self.name) + "," + str(self.arrival)
         str2 = str(self.burst) + "," + str(self.priority)
         return ','.join([str1, str2, str(self.waiting)])
+
+    def __add__(self, other):
+        return str(self) + other
 
 
 class Schedule(object):
@@ -24,11 +30,11 @@ class Schedule(object):
         self.processes = processes
         self.aveCT = 0
 
-    def averageCT(self):
+    def averageWT(self):
         sum = 0
         for process in self.processes:
             sum += process.waiting
-        self.aveCT = sum / len(self.processes)
+        self.aveWT = sum / float(len(self.processes))
 
     def genWaiting(self):
         prev = self.processes[0]
@@ -41,6 +47,10 @@ class Schedule(object):
         for process in reset:
             process.waiting = 0
         self.processes = reset
+
+    def printGantt(self):
+        for process in self.processes:
+            print "|"*process.burst,
 
     def __str__(self):
         return self.processes
@@ -67,6 +77,28 @@ class SRPT(Schedule):
     def __init__(self, processes):
         Schedule.__init__(self, processes)
 
+    def genWaiting(self):
+        stored = [self.processes[0]]
+        currtime = 0
+        least = min(stored, key=attrgetter('burst'))
+        while(stored):
+            least.burst -= 1
+            if not least.burst:
+                stored.remove(least)
+
+            currtime += 1
+
+            for process in self.processes:
+                if process.arrival == currtime:
+                    stored.append(process)
+
+            if stored:
+                least = min(stored, key=attrgetter('burst'))
+
+            for store in stored:
+                if store.name != least.name:
+                    store.waiting += 1
+
 
 class Priority(Schedule):
     """docstring for FCFS"""
@@ -83,6 +115,26 @@ class RoundRobin(Schedule):
     def __init__(self, processes):
         Schedule.__init__(self, processes)
 
+    def genWaiting(self):
+        ctr = 0
+        clist = 0
+        blist = []
+        deduct = 0
+        for process in self.processes:
+            blist.append(process)
+
+        while blist:
+            for bist in blist:
+                print "p"+str(bist.name), ctr, bist.burst
+                if bist.burst < 5 and bist.burst != 0:
+                    bist.waiting = ctr - (clist*4)
+                    ctr += bist.burst
+                    blist.remove(bist)
+                else:
+                    ctr += 4
+                    bist.burst -= 4
+            clist += 1
+
 
 class FileRead(object):
     """docstring for FileRead"""
@@ -96,7 +148,7 @@ class FileRead(object):
         return self.processes
 
     def extractData(self):
-        string = open("processes/process1.txt", "r")
+        string = open("processes" + self.file, "r")
         for line in string:
             self.lines.append(line)
 
@@ -116,44 +168,61 @@ class FileRead(object):
 
 
 def main():
-    file = FileRead("/process1.txt")
+    file = FileRead("/process3.txt")
     file.extractData()
     file.datatoProcess()
     processes = file.getProcesses()
 
     # FCFS------------------------------------------------------------------------------------------
+    print "FCFS"
     fcfs = FCFS(processes)
     fcfs.genWaiting()
     for process in fcfs.processes:
         print(process)
-    fcfs.averageCT()
-    print("Average Waiting Time: " + str(fcfs.aveCT))
+    fcfs.averageWT()
+    print("Average Waiting Time: " + str(fcfs.aveWT))
 
     # SJF-------------------------------------------------------------------------------------------
+    print "SJF"
     sjf = SJF(processes)
     sjf.resetSched()
     sjf.sortSched()
     sjf.genWaiting()
     for process in sjf.processes:
         print(process)
-    sjf.averageCT()
-    print("Average Waiting Time: " + str(sjf.aveCT))
-
-    # SRPT-------------------------------------------------------------------------------------------
-    srpt = SRPT(processes)
+    sjf.averageWT()
+    print("Average Waiting Time: " + str(sjf.aveWT))
 
     # PRIORITY---------------------------------------------------------------------------------------
+    print "PRIORITY"
     priority = Priority(processes)
     priority.resetSched()
     priority.sortSched()
     priority.genWaiting()
     for process in priority.processes:
         print(process)
-    priority.averageCT()
-    print("Average Waiting Time: " + str(priority.aveCT))
+    priority.averageWT()
+    print("Average Waiting Time: " + str(priority.aveWT))
 
     # ROUNDROBIN-------------------------------------------------------------------------------------
+    print "ROUNDROBIN"
     roundrobin = RoundRobin(processes)
+    roundrobin.resetSched()
+    roundrobin.genWaiting()
+    for process in roundrobin.processes:
+        print(process)
+    roundrobin.averageWT()
+    print("Average Waiting Time: " + str(roundrobin.aveWT))
+
+    # SRPT-------------------------------------------------------------------------------------------
+    print "SRPT"
+    srpt = SRPT(processes)
+    # srpt.resetSched()
+    # srpt.genWaiting()
+    # for process in srpt.processes:
+    #     print(process)
+    # srpt.averageWT()
+    # print("Average Waiting Time: " + str(srpt.aveWT))
 
 
 if __name__ == '__main__':
