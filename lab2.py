@@ -17,7 +17,7 @@ class Process(object):
     def __str__(self):
         str1 = str(self.name) + "," + str(self.arrival)
         str2 = str(self.burst) + "," + str(self.priority)
-        return ','.join([str1, str2, str(self.waiting)])
+        return ','.join([str1, str2, str(self.waiting)+"ms"])
 
     def __add__(self, other):
         return str(self) + other
@@ -47,6 +47,13 @@ class Schedule(object):
         for process in reset:
             process.waiting = 0
         self.processes = reset
+
+    def getAveCT(self):
+        suma = 0
+        for process in self.processes:
+            suma += process.burst
+        self.aveCT = suma/float(len(self.processes))
+        return self.aveCT
 
     def printGantt(self):
         for process in self.processes:
@@ -117,23 +124,83 @@ class RoundRobin(Schedule):
 
     def genWaiting(self):
         ctr = 0
-        clist = 0
-        blist = []
-        deduct = 0
-        for process in self.processes:
-            blist.append(process)
+        time_slice = 4
+        time = 0
+        add_to_time = 0
+        occured = []
+        occur_ctr = 0
 
-        while blist:
-            for bist in blist:
-                print "p"+str(bist.name), ctr, bist.burst
-                if bist.burst < 5 and bist.burst != 0:
-                    bist.waiting = ctr - (clist*4)
-                    ctr += bist.burst
-                    blist.remove(bist)
+        while not self.areProcessesAllComplete():
+            current = self.processes[ctr]
+
+            if current.burst > 0:
+                if occur_ctr == 0:
+                    occured.append(occur_ctr)
                 else:
-                    ctr += 4
-                    bist.burst -= 4
-            clist += 1
+                    occured[ctr] += 1
+
+                while time_slice > 0:
+                    time_slice -= 1
+                    current.burst -= 1
+                    add_to_time += 1
+
+                    if current.burst == 0:
+                        current.waiting = time - (occured[ctr] * 4)
+                        break
+
+            time += add_to_time
+            add_to_time = 0
+            time_slice = 4
+
+            ctr += 1
+
+            if ctr == len(self.processes):
+                ctr = 0
+                occur_ctr += 1
+
+        # return self.processes
+
+    def areProcessesAllComplete(self):
+        for process in self.processes:
+            if process.burst > 0:
+                return False
+        return True
+
+    # def genWaiting(self):
+    #     ctr = 0
+    #     clist = 0
+    #     blist = []
+    #     deduct = 0
+    #     for process in self.processes:
+    #         blist.append(process)
+    #     x = 0
+    #     while x < 4:
+    #         # for bist in blist:
+    #         #     print "p"+str(bist.name), bist.burst
+    #         # print "------------------------------------"
+    #         for bist in blist:
+    #             # print "p"+str(bist.name), ctr, bist.burst
+    #             if bist.burst <= 4:
+    #                 bist.waiting = ctr - (clist*4)
+    #                 ctr += bist.burst
+    #                 bist.burst = 0
+    #             else:
+    #                 ctr += 4
+    #                 bist.burst -= 4
+
+    #         zeroes = reversed(sorted(self.checkForZeroes(blist)))
+    #         for zero in zeroes:
+    #             del blist[zero]
+
+    #         clist += 1
+    #         x += 1
+
+    # def checkForZeroes(self, lista):
+    #     zeroes = []
+    #     for index, item in enumerate(lista):
+    #         if item.burst == 0:
+    #             zeroes.append(index)
+    #     return zeroes
 
 
 class FileRead(object):
@@ -168,19 +235,24 @@ class FileRead(object):
 
 
 def main():
-    file = FileRead("/process3.txt")
+    file = FileRead("/process2.txt")
     file.extractData()
     file.datatoProcess()
     processes = file.getProcesses()
+    avewaits = []
 
     # FCFS------------------------------------------------------------------------------------------
     print "FCFS"
     fcfs = FCFS(processes)
+    aveCT = fcfs.getAveCT()
     fcfs.genWaiting()
     for process in fcfs.processes:
         print(process)
     fcfs.averageWT()
-    print("Average Waiting Time: " + str(fcfs.aveWT))
+    avewaits.append((fcfs.aveWT, "FCFS"))
+    print("Average Waiting Time: " + str(fcfs.aveWT) + "ms")
+    print("Average Computing Time: " + str(aveCT))
+    print("------------------------------------------------------------------")
 
     # SJF-------------------------------------------------------------------------------------------
     print "SJF"
@@ -191,7 +263,10 @@ def main():
     for process in sjf.processes:
         print(process)
     sjf.averageWT()
-    print("Average Waiting Time: " + str(sjf.aveWT))
+    avewaits.append((sjf.aveWT, "SJF"))
+    print("Average Waiting Time: " + str(sjf.aveWT) + "ms")
+    print("Average Computing Time: " + str(aveCT))
+    print("------------------------------------------------------------------")
 
     # PRIORITY---------------------------------------------------------------------------------------
     print "PRIORITY"
@@ -202,7 +277,10 @@ def main():
     for process in priority.processes:
         print(process)
     priority.averageWT()
-    print("Average Waiting Time: " + str(priority.aveWT))
+    avewaits.append((priority.aveWT, "PRIORITY"))
+    print("Average Waiting Time: " + str(priority.aveWT) + "ms")
+    print("Average Computing Time: " + str(aveCT))
+    print("------------------------------------------------------------------")
 
     # ROUNDROBIN-------------------------------------------------------------------------------------
     print "ROUNDROBIN"
@@ -212,17 +290,31 @@ def main():
     for process in roundrobin.processes:
         print(process)
     roundrobin.averageWT()
-    print("Average Waiting Time: " + str(roundrobin.aveWT))
+    avewaits.append((roundrobin.aveWT, "ROUNDROBIN"))
+    print("Average Waiting Time: " + str(roundrobin.aveWT) + "ms")
+    print("Average Computing Time: " + str(aveCT))
+    print("------------------------------------------------------------------")
 
     # SRPT-------------------------------------------------------------------------------------------
+    file = FileRead("/process2.txt")
+    file.extractData()
+    file.datatoProcess()
+    processes = file.getProcesses()
+
     print "SRPT"
     srpt = SRPT(processes)
-    # srpt.resetSched()
-    # srpt.genWaiting()
-    # for process in srpt.processes:
-    #     print(process)
-    # srpt.averageWT()
-    # print("Average Waiting Time: " + str(srpt.aveWT))
+    srpt.resetSched()
+    srpt.genWaiting()
+    for process in srpt.processes:
+        print(process)
+    srpt.averageWT()
+    avewaits.append((srpt.aveWT, "SRPT"))
+    print("Average Waiting Time: " + str(srpt.aveWT) + "ms")
+    print("Average Computing Time: " + str(aveCT))
+    print("------------------------------------------------------------------")
+    avewaits = sorted(avewaits)
+    for ave in avewaits:
+        print str(ave[0]) + "ms, " + ave[1]
 
 
 if __name__ == '__main__':
